@@ -34,7 +34,7 @@ fi
 NET_ETH0_MAC=$(cat /sys/class/net/eth0/address 2>/dev/null )
 if [ -z "$NET_ETH0_MAC" ]; then
 	NET_ETH0_IP="- no eth0 interface -"
-        NET_ETH0_MAC="- no eth0 interface -"
+	NET_ETH0_MAC="- no eth0 interface -"
 else
 	NET_ETH0_IP=$(ip -4 addr show dev eth0 2>/dev/null | grep inet | awk '{print $2}');
 fi
@@ -42,10 +42,16 @@ fi
 NET_WLAN0_MAC=$(cat /sys/class/net/wlan0/address 2>/dev/null )
 if [ -z "$NET_WLAN0_MAC" ]; then
 	NET_WLAN0_IP="- no wlan0 interface -"
-        NET_WLAN0_MAC="- no wlan0 interface -"
+	NET_WLAN0_MAC="- no wlan0 interface -"
 else
 	NET_WLAN0_IP=$(ip -4 addr show dev wlan0 2>/dev/null | grep inet | awk '{print $2}') ;
 fi
+
+NET_BT_MAC=$(hcitool dev 2>/dev/null | grep hci| awk '{print $2}')
+if [ -z "$NET_BT_MAC" ]; then
+	NET_BT_MAC="- no hci0 interface -"
+fi
+
 
 # Spit-out collected data
 # cpu
@@ -67,6 +73,9 @@ echo -e "\033[91mIFACE \033[35meth0\033[91m MAC   \033[31m: \033[94m$NET_ETH0_MA
 echo -e "\033[91mIFACE \033[35meth0\033[91m IPv4  \033[31m: \033[94m$NET_ETH0_IP  \033[0m"
 echo -e "\033[91mIFACE \033[95mwlan0\033[91m MAC  \033[31m: \033[94m$NET_WLAN0_MAC\033[0m"
 echo -e "\033[91mIFACE \033[95mwlan0\033[91m IPv4 \033[31m: \033[94m$NET_WLAN0_IP \033[0m"
+# network
+echo -e "\033[32m--------------------- BLUETOOTH INFO ----------------------\033[0m"
+echo -e "\033[91mIFACE \033[35mhci0\033[91m MAC   \033[31m: \033[94m$NET_BT_MAC \033[0m"
 # voltage
 echo -e "\033[32m---------------------- VOLTAGE INFO -----------------------\033[0m"
 for id in core sdram_c sdram_i sdram_p ; do
