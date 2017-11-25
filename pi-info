@@ -1,0 +1,148 @@
+#!/bin/bash
+# script to show some inforrmation about Raspberry Pi
+# Author: saper_2
+# Date: 2017-11-25
+# Version: 0.1
+
+# Collect CPU info
+CPU_MODEL=$(cat /proc/cpuinfo |grep 'model name' | uniq | cut -d ':' -f2)
+CPU_SOC=$(cat /proc/cpuinfo |grep -e Hardware | cut -d ':' -f2)
+CPU_REV=$(cat /proc/cpuinfo |grep -e Revision | cut -d ':' -f2)
+CPU_SN=$(cat /proc/cpuinfo |grep -e Serial | cut -d ':' -f2)
+CPU_CORES=$(ls /sys/devices/system/cpu|egrep 'cpu[0-9]$'|wc -l)
+CPU_F_MIN=$(( $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq) / 1000))
+CPU_F_MAX=$(( $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq) / 1000))
+CPU_F_CUR=$(( $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq) / 1000))
+CPU_TEMP=$(vcgencmd measure_temp | cut -d '=' -f2)
+
+# Collect memory info
+RAM_MEM=$(vcgencmd get_mem arm|cut -d '=' -f2)
+GPU_MEM=$(vcgencmd get_mem gpu|cut -d '=' -f2)
+
+# check USB/Network boot bit
+# if start from '3' then USB_BOOT_ENABLED , otherwise shoulde be '1'
+OTP_USB_BOOT_DWORD=$(vcgencmd otp_dump | grep 17|cut -d ':' -f2)
+
+OTP_USB_BOOT="No"
+
+if [ "${OTP_USB_BOOT_DWORD:0:1}" -eq "3" ]; then
+	OTP_USB_BOOT="Yes - Enabled"
+fi
+
+# get Network information (eth0 and wlan0)
+NET_ETH0_MAC=$(cat /sys/class/net/eth0/address 2>/dev/null )
+if [ -z "$NET_ETH0_MAC" ]; then
+	NET_ETH0_IP="- no eth0 interface -"
+        NET_ETH0_MAC="- no eth0 interface -"
+else
+	NET_ETH0_IP=$(ip -4 addr show dev eth0 2>/dev/null | grep inet | awk '{print $2}');
+fi
+
+NET_WLAN0_MAC=$(cat /sys/class/net/wlan0/address 2>/dev/null )
+if [ -z "$NET_WLAN0_MAC" ]; then
+	NET_WLAN0_IP="- no wlan0 interface -"
+        NET_WLAN0_MAC="- no wlan0 interface -"
+else
+	NET_WLAN0_IP=$(ip -4 addr show dev wlan0 2>/dev/null | grep inet | awk '{print $2}') ;
+fi
+
+# Spit-out collected data
+# cpu
+echo -e "\033[32m------------------------ CPU INFO -------------------------\033[0m"
+echo -e "\033[91mModel            \033[31m:\033[94m$CPU_MODEL\033[0m"
+echo -e "\033[91mSoC              \033[31m:\033[94m$CPU_SOC\033[0m"
+echo -e "\033[91mRevision         \033[31m:\033[94m$CPU_REV\033[0m"
+echo -e "\033[91mS/N#             \033[31m:\033[94m$CPU_SN\033[0m"
+echo -e "\033[91mCores            \033[31m:\033[94m $CPU_CORES\033[0m"
+echo -e "\033[91mFrequency        \033[31m:\033[94m Min=${CPU_F_MIN}MHz / Now=${CPU_F_CUR}MHz / Max=${CPU_F_MAX}MHz\033[0m"
+echo -e "\033[91mTemperature      \033[31m:\033[94m $CPU_TEMP\033[0m"
+# memory
+echo -e "\033[32m----------------------- MEMORY INFO -----------------------\033[0m"
+echo -e "\033[91mMEM RAM SIZE     \033[31m:\033[94m $RAM_MEM\033[0m"
+echo -e "\033[91mMEM GPU SIZE     \033[31m:\033[94m $GPU_MEM\033[0m"
+# network
+echo -e "\033[32m---------------------- NETWORK INFO -----------------------\033[0m"
+echo -e "\033[91mIFACE \033[35meth0\033[91m MAC   \033[31m: \033[94m$NET_ETH0_MAC \033[0m"
+echo -e "\033[91mIFACE \033[35meth0\033[91m IPv4  \033[31m: \033[94m$NET_ETH0_IP  \033[0m"
+echo -e "\033[91mIFACE \033[95mwlan0\033[91m MAC  \033[31m: \033[94m$NET_WLAN0_MAC\033[0m"
+echo -e "\033[91mIFACE \033[95mwlan0\033[91m IPv4 \033[31m: \033[94m$NET_WLAN0_IP \033[0m"
+# voltage
+echo -e "\033[32m---------------------- VOLTAGE INFO -----------------------\033[0m"
+for id in core sdram_c sdram_i sdram_p ; do
+        printf "\033[91m%-17s\033[31m:\033[94m %s\033[0m\\n" $id $(vcgencmd measure_volts $id | cut -d '=' -f2) ;
+done
+# gpu codecs
+echo -e "\033[32m------------------- GPU ENABLED CODECs --------------------\033[0m"
+for codec in H264 MPG2 WVC1 MPG4 MJPG WMV9 ; do
+	printf "\033[91m%-17s\033[31m:\033[94m %s \033[0m\\n" $codec $(vcgencmd codec_enabled $codec | cut -d '=' -f2) ;
+done
+# extenral boot
+echo -e "\033[32m--------------------- EXTERNAL BOOT -----------------------\033[0m"
+echo -e "\033[91mUSB/Ethernet boot\033[31m:\033[94m $OTP_USB_BOOT\033[0m (OTP_ROM[0x11]=\033[33m0x$OTP_USB_BOOT_DWORD\033[0m)"
+# sd/mmc devices
+echo -e "\033[32m--------------------- SD/MMC DEVICES ----------------------\033[0m"
+for mmc in $(ls /sys/bus/mmc/devices); do
+	mmcname=$(cat /sys/bus/mmc/devices/$mmc/name 2>/dev/null)
+	mmctype=$(cat /sys/bus/mmc/devices/$mmc/type 2>/dev/null)
+	printf "\033[91m%-17s\033[31m:\033[94m %s\033[0m\\n" "Device" "$mmc"
+	printf "    \033[96m%-17s\033[92m:\033[94m %s\033[0m\\n" "Type" "$mmctype"
+	# type = SD
+	if [ "$mmctype" = "SD" ]; then
+		mmcname=$(cat /sys/bus/mmc/devices/$mmc/name 2>/dev/null)
+		mmcsn=$(cat /sys/bus/mmc/devices/$mmc/serial 2>/dev/null)
+		mmcoem=$(cat /sys/bus/mmc/devices/$mmc/oemid 2>/dev/null)
+		mmchwrv=$(cat /sys/bus/mmc/devices/$mmc/hwrev 2>/dev/null)
+		mmcfwrv=$(cat /sys/bus/mmc/devices/$mmc/fwrev 2>/dev/null)
+		mmcrcid=$(cat /sys/bus/mmc/devices/$mmc/cid 2>/dev/null)
+		mmcrcsd=$(cat /sys/bus/mmc/devices/$mmc/csd 2>/dev/null)
+		mmcrdsr=$(cat /sys/bus/mmc/devices/$mmc/dsr 2>/dev/null)
+		mmcrscr=$(cat /sys/bus/mmc/devices/$mmc/scr 2>/dev/null)
+		#mmcrssr=$(cat /sys/bus/mmc/devices/$mmc/ssr 2>/dev/null)
+		mmcrocr=$(cat /sys/bus/mmc/devices/$mmc/ocr 2>/dev/null)
+		mmcdate=$(cat /sys/bus/mmc/devices/$mmc/date 2>/dev/null)
+		mmcman=$(cat /sys/bus/mmc/devices/$mmc/manfid 2>/dev/null)
+		mmcesz=$(cat /sys/bus/mmc/devices/$mmc/erase_size 2>/dev/null)
+		mmcepsz=$(cat /sys/bus/mmc/devices/$mmc/preferred_erase_size 2>/dev/null)
+		printf "\033[96m    %-17s\033[92m:\033[94m %s\033[0m\\n" "Name" "$mmcname"
+		printf "\033[96m    %-17s\033[92m:\033[94m %s\033[0m\\n" "OEM App. Id" "$mmcoem"
+		printf "\033[96m    %-17s\033[92m:\033[94m %s\033[0m\\n" "S/N#" "$mmcsn"
+		printf "\033[96m    %-17s\033[92m:\033[94m %s\033[0m\\n" "Manufacturer Id" "$mmcman"
+		printf "\033[96m    %-17s\033[92m:\033[94m %s\033[0m\\n" "Man. date" "$mmcdate"
+		printf "\033[96m    %-17s\033[92m:\033[94m %s\033[0m\\n" "Log. block size" "$mmcesz"
+		printf "\033[96m    %-17s\033[92m:\033[94m %s\033[0m\\n" "Phys. block size" "$mmcepsz"
+		printf "\033[96m    %-17s\033[92m:\033[94m %s\033[0m\\n" "Hardware rev." "$mmchwrv"
+		printf "\033[96m    %-17s\033[92m:\033[94m %s\033[0m\\n" "Firmware rev." "$mmcfwrv"
+		printf "\033[96m    %-17s\033[92m:\033[94m %s\033[0m\\n" "CID register" "$mmcrcid"
+		printf "\033[96m    %-17s\033[92m:\033[94m %s\033[0m\\n" "CSD register" "$mmcrcsd"
+		printf "\033[96m    %-17s\033[92m:\033[94m %s\033[0m\\n" "DSR register" "$mmcrdsr"
+		printf "\033[96m    %-17s\033[92m:\033[94m %s\033[0m\\n" "SCR register" "$mmcrscr"
+		printf "\033[96m    %-17s\033[92m:\033[94m %s\033[0m\\n" "OCR register" "$mmcrocr"
+		#printf "    %-17s: %s\\n" "SSR register" "$mmcrssr"
+	fi
+done
+
+echo -e "\033[32m------------------------ THE END. -------------------------\033[0m"
+
+# this was used to collect data
+# cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+# cat /proc/cpuinfo |grep 'model name' | uniq
+# SN, Rev, Hw
+# cat /proc/cpuinfo |grep -e Hardware -e Reviion -e Serial 
+
+# vcgencmd get_mem arm && vcgencmd get_mem gpu
+
+#for src in arm core h264 isp v3d uart pwm emmc pixel vec hdmi dpi ; do
+#	echo -e "$src:\t$(vcgencmd measure_clock $src)" ;
+#done
+
+# vcgencmd measure_temp
+
+#for id in core sdram_c sdram_i sdram_p ; do
+#	echo -e "$id:\t$(vcgencmd measure_volts $id)" ;
+#done
+
+#for codec in H264 MPG2 WVC1 MPG4 MJPG WMV9 ; do
+#	echo -e "$codec:\t$(vcgencmd codec_enabled $codec)" ;
+#done
+
+
