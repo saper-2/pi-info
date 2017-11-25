@@ -1,6 +1,7 @@
 # Intro
 The ```pi-info``` was created at beginning only to show MAC addresses & SN  (without the junk from ```/proc/cpuinfo``` and ```ip -4 addr show```). Eventually I added more info that can be collected :smile:
-My primary objective was to **not use** any program that would user have to install, so I used what had at hand in clean **Raspbian** install (not **lite** nor **noobs** !! ).
+
+My primary objective was to **not use** any program that would user have to install, so I used what had at hand in clean **Raspbian** install (not **lite** nor **noobs** !! - I don't have them, so I didn't tested script on those ).
 
 # Script
 Script uses:
