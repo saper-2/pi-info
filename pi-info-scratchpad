@@ -1,0 +1,29 @@
+#!/bin/bash
+# script to show some inforrmation about Raspberry Pi
+# Author: saper_2
+# Date: 2017-11-25
+# Version: 0.1
+
+# this was used to collect data
+# cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+# cat /proc/cpuinfo |grep 'model name' | uniq
+# SN, Rev, Hw
+# cat /proc/cpuinfo |grep -e Hardware -e Reviion -e Serial 
+
+# vcgencmd get_mem arm && vcgencmd get_mem gpu
+
+#for src in arm core h264 isp v3d uart pwm emmc pixel vec hdmi dpi ; do
+#	echo -e "$src:\t$(vcgencmd measure_clock $src)" ;
+#done
+
+# vcgencmd measure_temp
+
+#for id in core sdram_c sdram_i sdram_p ; do
+#	echo -e "$id:\t$(vcgencmd measure_volts $id)" ;
+#done
+
+#for codec in H264 MPG2 WVC1 MPG4 MJPG WMV9 ; do
+#	echo -e "$codec:\t$(vcgencmd codec_enabled $codec)" ;
+#done
+
+

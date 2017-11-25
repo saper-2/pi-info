@@ -29,3 +29,4 @@ Below is a screenshot of output from PuTTY :
 
 # End.
 The end :)
+The *pi-info-scratchpad* contains some commands, that I used to write the main script :smile:
